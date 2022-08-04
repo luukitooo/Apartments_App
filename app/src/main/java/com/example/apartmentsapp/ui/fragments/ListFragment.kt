@@ -1,23 +1,23 @@
 package com.example.apartmentsapp.ui.fragments
 
 import android.os.Bundle
-import android.util.Log.d
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.apartmentsapp.R
 import com.example.apartmentsapp.databinding.FragmentListBinding
+import com.example.apartmentsapp.model.ApartmentInfo
 import com.example.apartmentsapp.ui.adapters.ApartmentAdapter
+import com.example.apartmentsapp.utils.ResponseEvent
 import com.example.apartmentsapp.viewmodel.ListViewModel
-import kotlinx.coroutines.flow.collect
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
 
 class ListFragment : Fragment() {
@@ -42,14 +42,14 @@ class ListFragment : Fragment() {
 
         init()
 
-        observers()
-
         onClickListeners()
+
+        observers()
 
     }
 
     private fun init() {
-        binding.root.apply {
+        binding.recyclerView.apply {
             adapter = apartmentAdapter
             layoutManager = LinearLayoutManager(context)
         }
@@ -59,11 +59,24 @@ class ListFragment : Fragment() {
     private fun observers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.apartmentList.collect {
-                    apartmentAdapter.submitList(it)
+                viewModel.events.collect { event ->
+                    when(event) {
+                        is ResponseEvent.Success -> handleSuccess(event.resultList)
+                        is ResponseEvent.Error -> handleError(event.errorBody)
+                        else -> {}
+                    }
+                    binding.progressBar.isVisible = event.isLoading
                 }
             }
         }
+    }
+
+    private fun handleError(errorBody: String) {
+        Snackbar.make(binding.root, errorBody, Snackbar.LENGTH_SHORT).show()
+    }
+
+    private fun handleSuccess(resultList: List<ApartmentInfo.Content>) {
+        apartmentAdapter.submitList(resultList)
     }
 
     private fun onClickListeners() {
